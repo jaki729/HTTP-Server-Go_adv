@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #messages {
+            height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+        }
+        #messageInput {
+            width: 80%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .file-upload {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Client</h1>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button id="sendButton">Send</button>
+    <button id="disconnectButton">Disconnect</button>
+    <button id="clearButton">Clear Messages</button>
+
+    <div class="file-upload">
+        <h2>Upload a File</h2>
+        <form id="uploadForm">
+            <input type="file" id="fileInput">
+            <button type="button" id="uploadButton">Upload</button>
+        </form>
+    </div>
+
+    <script>
+        // Connect to the WebSocket server
+        const ws = new WebSocket("ws://localhost:4221/ws");
+
+        // Handle WebSocket connection open
+        ws.onopen = () => {
+            console.log("WebSocket connection established");
+            appendMessage("System: Connected to WebSocket server");
+        };
+
+        // Handle WebSocket messages
+        ws.onmessage = (event) => {
+            appendMessage(`Server: ${event.data}`);
+        };
+
+        // Handle WebSocket errors
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            appendMessage("System: WebSocket error");
+        };
+
+        // Handle WebSocket connection close
+        ws.onclose = () => {
+            console.log("WebSocket connection closed");
+            appendMessage("System: Disconnected from WebSocket server");
+        };
+
+        // Send a message when the send button is clicked
+        document.getElementById("sendButton").addEventListener("click", () => {
+            const message = document.getElementById("messageInput").value;
+            if (message) {
+                ws.send(message);
+                appendMessage(`You: ${message}`);
+                document.getElementById("messageInput").value = "";
+            }
+        });
+
+        // Disconnect the WebSocket connection
+        document.getElementById("disconnectButton").addEventListener("click", () => {
+            ws.close();
+        });
+
+        // Clear the messages box
+        document.getElementById("clearButton").addEventListener("click", () => {
+            document.getElementById("messages").innerHTML = "";
+        });
+
+        // Handle file upload
+        document.getElementById("uploadButton").addEventListener("click", (event) => {
+            event.preventDefault(); // Prevent form submission
+
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append("file", file);
+
+                fetch("http://localhost:4221/upload", {
+                    method: "POST",
+                    body: formData,
+                })
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (data.message) {
+                            appendMessage(`System: ${data.message}`);
+                        } else if (data.error) {
+                            appendMessage(`System: ${data.error}`);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error uploading file:", error);
+                        appendMessage("System: File upload failed");
+                    });
+            } else {
+                appendMessage("System: No file selected");
+            }
+        });
+
+        // Append a message to the messages div
+        function appendMessage(message) {
+            const messagesDiv = document.getElementById("messages");
+            const messageElement = document.createElement("div");
+            messageElement.textContent = message;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
